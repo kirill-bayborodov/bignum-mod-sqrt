@@ -1,8 +1,8 @@
-# How-to: `bignum_template_full.json`
+# How-to: `bignum_mod_sqrt_full.json`
 
 ## Назначение
 
-`bignum_template_full.json` — расширенная domain-specific matrix для анализа производительности in-place left shift. Она предназначена для подготовленного controlled run, а не для быстрого CI smoke. Manifest сохраняет все meaningful bignum axes: zero/mixed input, zero/bit/word/combined/random/mixed shift amount, operand word length, measurement boundary and near-capacity state.
+`bignum_mod_sqrt_full.json` — расширенная domain-specific matrix для анализа производительности in-place left shift. Она предназначена для подготовленного controlled run, а не для быстрого CI smoke. Manifest сохраняет все meaningful bignum axes: zero/mixed input, zero/bit/word/combined/random/mixed shift amount, operand word length, measurement boundary and near-capacity state.
 
 The C11 `bench_matrix` runner from pinned `benchmark-framework v1.0.0` accepts the JSON document and launches project-owned ST/MT bignum adapter binaries. The runner writes a raw samples document; the C11 `benchmark_stats` tool parses it through public `json-lib` and emits a metrics/regression summary.
 
@@ -24,10 +24,10 @@ Use fixed seed, thread count, data-count and iteration counts when a result will
 
 ```bash
 libs/benchmark-framework/build/tools/bench_matrix \
-  --manifest benchmarks/profiles/bignum_template_full.json \
-  --output benchmarks/reports/bignum_template_full_matrix.json \
-  --st-binary bin/bench_bignum_template \
-  --mt-binary bin/bench_bignum_template_mt \
+  --manifest benchmarks/profiles/bignum_mod_sqrt_full.json \
+  --output benchmarks/reports/bignum_mod_sqrt_full_matrix.json \
+  --st-binary bin/bench_bignum_mod_sqrt \
+  --mt-binary bin/bench_bignum_mod_sqrt_mt \
   --repetitions 7 \
   --iterations 200000000 \
   --mt-total-iterations 320000000 \
@@ -46,8 +46,8 @@ Create a candidate summary first:
 
 ```bash
 libs/benchmark-framework/build/tools/benchmark_stats \
-  --input benchmarks/reports/bignum_template_full_matrix.json \
-  --output benchmarks/reports/bignum_template_full_summary.json
+  --input benchmarks/reports/bignum_mod_sqrt_full_matrix.json \
+  --output benchmarks/reports/bignum_mod_sqrt_full_summary.json
 ```
 
 After review, preserve the raw matrix JSON as the baseline because it contains all repetitions and profile metadata. Compare a later candidate as follows:

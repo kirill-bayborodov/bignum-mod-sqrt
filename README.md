@@ -1,11 +1,11 @@
-# bignum-template
+# bignum-mod_sqrt
 
-[![C/ASM CI](https://github.com/kirill-bayborodov/bignum-template/actions/workflows/ci.yml/badge.svg)](https://github.com/kirill-bayborodov/bignum-template/actions/workflows/ci.yml)
-[![GitHub release](https://img.shields.io/github/v/release/kirill-bayborodov/bignum-template?label=release)](https://github.com/kirill-bayborodov/bignum-template/releases/latest)
+[![C/ASM CI](https://github.com/kirill-bayborodov/bignum-mod_sqrt/actions/workflows/ci.yml/badge.svg)](https://github.com/kirill-bayborodov/bignum-mod_sqrt/actions/workflows/ci.yml)
+[![GitHub release](https://img.shields.io/github/v/release/kirill-bayborodov/bignum-mod_sqrt?label=release)](https://github.com/kirill-bayborodov/bignum-mod_sqrt/releases/latest)
 
-`bignum-template` is a standalone C/ASM module that performs an in-place logical left shift of a `bignum_t`. The production path is an x86-64 YASM implementation conforming to the System V AMD64 ABI. The operation validates its argument, detects shifts that would lose significant bits beyond `BIGNUM_CAPACITY`, moves complete words and remaining bits, updates `len`, and normalizes leading zero words.
+`bignum-mod_sqrt` is a standalone C/ASM module that performs an in-place logical left shift of a `bignum_t`. The production path is an x86-64 YASM implementation conforming to the System V AMD64 ABI. The operation validates its argument, detects shifts that would lose significant bits beyond `BIGNUM_CAPACITY`, moves complete words and remaining bits, updates `len`, and normalizes leading zero words.
 
-The module is intended as a template component of the `bignum-lib` family. In a derived repository, replace the operation-specific API and implementation while preserving the build, test, distribution, and benchmark conventions described here.
+The module is intended as a mod_sqrt component of the `bignum-lib` family. In a derived repository, replace the operation-specific API and implementation while preserving the build, test, distribution, and benchmark conventions described here.
 
 ## Distribution
 
@@ -14,15 +14,15 @@ The required `bignum-core` component is included as a Git submodule at `libs/big
 | Component | Expected location | Purpose |
 |---|---|---|
 | `bignum-core` | `libs/bignum-core` | Defines `bignum_t`, `BIGNUM_CAPACITY`, and common primitives |
-| `bignum-add-u64` | `libs/bignum-add-u64/dist` | Static library used by the template dependency graph |
-| `bignum-cmp` | `libs/bignum-cmp/dist` | Static library used by the template dependency graph |
+| `bignum-add-u64` | `libs/bignum-add-u64/dist` | Static library used by the mod_sqrt dependency graph |
+| `bignum-cmp` | `libs/bignum-cmp/dist` | Static library used by the mod_sqrt dependency graph |
 | `benchmark-framework` | `libs/benchmark-framework` | Pinned public `v1.0.0` C11 framework with `benchmark-core`, `json-lib`, matrix execution, and regression statistics |
 
 Clone the repository with its submodule:
 
 ```bash
-git clone --recurse-submodules https://github.com/kirill-bayborodov/bignum-template.git
-cd bignum-template
+git clone --recurse-submodules https://github.com/kirill-bayborodov/bignum-mod_sqrt.git
+cd bignum-mod_sqrt
 ```
 
 For an existing clone, initialize all submodules with:
@@ -36,7 +36,7 @@ If the linker reports missing `-lbignum_add_u64` or `-lbignum_cmp`, build or pro
 ## Features
 
 - **Production ASM path:** x86-64 YASM implementation for the System V AMD64 ABI.
-- **Explicit API status:** the public API exposes `bignum_template_status_t` rather than reusing a generic core status type.
+- **Explicit API status:** the public API exposes `bignum_mod_sqrt_status_t` rather than reusing a generic core status type.
 - **In-place logical shift:** complete-word and intra-word shifts are combined with carry propagation.
 - **Overflow protection:** shifts that would discard significant bits return an explicit error.
 - **Normalized representation:** successful operations update `len` and remove leading zero words.
@@ -64,28 +64,28 @@ The cloud benchmark target expects a `perf` binary compatible with the running k
 
 ## API
 
-The public API is declared in `include/bignum_template.h`:
+The public API is declared in `include/bignum_mod_sqrt.h`:
 
 ```c
 typedef enum {
-    BIGNUM_TEMPLATE_SUCCESS        =  0,
-    BIGNUM_TEMPLATE_ERROR_NULL_ARG = -1,
-    BIGNUM_TEMPLATE_ERROR_OVERFLOW = -2
-} bignum_template_status_t;
+    BIGNUM_MOD_SQRT_SUCCESS        =  0,
+    BIGNUM_MOD_SQRT_ERROR_NULL_ARG = -1,
+    BIGNUM_MOD_SQRT_ERROR_OVERFLOW = -2
+} bignum_mod_sqrt_status_t;
 
-bignum_template_status_t bignum_template(
+bignum_mod_sqrt_status_t bignum_mod_sqrt(
     bignum_t *restrict num,
-    size_t template_amount);
+    size_t modulus);
 ```
 
 ### Contract
 
 | Condition | Return value | Result |
 |---|---|---|
-| `num == NULL` | `BIGNUM_TEMPLATE_ERROR_NULL_ARG` | No `bignum_t` object is dereferenced |
-| `template_amount == 0` | `BIGNUM_TEMPLATE_SUCCESS` | Fast successful no-op |
-| Shift loses significant bits beyond `BIGNUM_CAPACITY` | `BIGNUM_TEMPLATE_ERROR_OVERFLOW` | No successful shifted result is produced |
-| Valid representable shift | `BIGNUM_TEMPLATE_SUCCESS` | `num` is shifted left in place; `len` is updated and normalized |
+| `num == NULL` | `BIGNUM_MOD_SQRT_ERROR_NULL_ARG` | No `bignum_t` object is dereferenced |
+| `modulus == 0` | `BIGNUM_MOD_SQRT_SUCCESS` | Fast successful no-op |
+| Shift loses significant bits beyond `BIGNUM_CAPACITY` | `BIGNUM_MOD_SQRT_ERROR_OVERFLOW` | No successful shifted result is produced |
+| Valid representable shift | `BIGNUM_MOD_SQRT_SUCCESS` | `num` is shifted left in place; `len` is updated and normalized |
 
 The operation is thread-safe when independent threads work with different, non-overlapping `bignum_t` objects. It mutates its `num` argument in place.
 
@@ -93,7 +93,7 @@ For example:
 
 ```c
 #include <stdint.h>
-#include "bignum_template.h"
+#include "bignum_mod_sqrt.h"
 
 typedef enum {
     APPLICATION_STATUS_SUCCESS = 0,
@@ -102,9 +102,9 @@ typedef enum {
 
 application_status_t shift_value(bignum_t *value)
 {
-    bignum_template_status_t status = bignum_template(value, 5U);
+    bignum_mod_sqrt_status_t status = bignum_mod_sqrt(value, 5U);
 
-    return status == BIGNUM_TEMPLATE_SUCCESS
+    return status == BIGNUM_MOD_SQRT_SUCCESS
         ? APPLICATION_STATUS_SUCCESS
         : APPLICATION_STATUS_SHIFT_ERROR;
 }
@@ -121,7 +121,7 @@ make build CONFIG=release
 The production object is generated at:
 
 ```text
-build/bignum_template.o
+build/bignum_mod_sqrt.o
 ```
 
 Run the deterministic, extended, multithreaded, and integration-runner suite:
@@ -159,29 +159,29 @@ The test files are organized as follows:
 
 | File | Scope |
 |---|---|
-| `tests/test_bignum_template.c` | Deterministic API, contract, and boundary tests |
-| `tests/test_bignum_template_extra.c` | Extended state, preservation, and boundary checks |
-| `tests/test_bignum_template_mt.c` | Concurrent independent-object checks |
-| `tests/test_bignum_template_runner.c` | Distribution integration smoke test |
-| `tests/benchmark_adapter/test_bignum_template_benchmark_adapter.c` | C11 transport mapping, validation, deterministic initialization, operation, and checksum tests |
+| `tests/test_bignum_mod_sqrt.c` | Deterministic API, contract, and boundary tests |
+| `tests/test_bignum_mod_sqrt_extra.c` | Extended state, preservation, and boundary checks |
+| `tests/test_bignum_mod_sqrt_mt.c` | Concurrent independent-object checks |
+| `tests/test_bignum_mod_sqrt_runner.c` | Distribution integration smoke test |
+| `tests/benchmark_adapter/test_bignum_mod_sqrt_benchmark_adapter.c` | C11 transport mapping, validation, deterministic initialization, operation, and checksum tests |
 
 ## Benchmarks
 
 The active benchmark sources are:
 
 ```text
-benchmarks/bench_bignum_template.c
-benchmarks/bench_bignum_template_mt.c
+benchmarks/bench_bignum_mod_sqrt.c
+benchmarks/bench_bignum_mod_sqrt_mt.c
 ```
 
 Each successful run reports the selected mode, seed, input fingerprint, checksum, successful-call count, elapsed time, and nanoseconds per call. Its final two lines follow this stable protocol:
 
 ```text
-benchmark=bignum_template_st ... elapsed_seconds=<seconds> ns_per_call=<nanoseconds>
+benchmark=bignum_mod_sqrt_st ... elapsed_seconds=<seconds> ns_per_call=<nanoseconds>
 Benchmark finished.
 ```
 
-The MT runner uses `benchmark=bignum_template_mt`. The trailing marker is the success condition checked by the Makefile; it must remain after the machine-readable line.
+The MT runner uses `benchmark=bignum_mod_sqrt_mt`. The trailing marker is the success condition checked by the Makefile; it must remain after the machine-readable line.
 
 | Mode | Input pattern | Purpose |
 |---|---|---|
@@ -192,7 +192,7 @@ The MT runner uses `benchmark=bignum_template_mt`. The trailing marker is the su
 ### Single-thread CLI
 
 ```text
-bin/bench_bignum_template \
+bin/bench_bignum_mod_sqrt \
   [--data-mode all_zero|all_nonzero|mixed] \
   [--input-kind zero|nonzero|mixed] \
   [--operation-kind shift-zero|shift-bit|shift-word|shift-combined|shift-random|shift-mixed] \
@@ -219,13 +219,13 @@ bin/bench_bignum_template \
 CLI options override the corresponding environment variables. Example controlled ST comparison:
 
 ```bash
-./bin/bench_bignum_template \
+./bin/bench_bignum_mod_sqrt \
   --input-kind nonzero --operation-kind shift-combined --size-profile half \
   --measure-mode end-to-end \
   --iterations 1000000 --warmup 10000 --data-count 4096 \
   --seed 123456789
 
-./bin/bench_bignum_template \
+./bin/bench_bignum_mod_sqrt \
   --input-kind nonzero --operation-kind shift-combined --size-profile half \
   --measure-mode kernel-only \
   --iterations 1000000 --warmup 10000 --data-count 4096 \
@@ -235,7 +235,7 @@ CLI options override the corresponding environment variables. Example controlled
 ### Multithread CLI
 
 ```text
-bin/bench_bignum_template_mt \
+bin/bench_bignum_mod_sqrt_mt \
   [--threads N] [--total-iterations N] \
   [--data-mode all_zero|all_nonzero|mixed] \
   [--input-kind zero|nonzero|mixed] \
@@ -264,18 +264,18 @@ MT workers are created once, complete warm-up before the timed interval, then sy
 For a fair one-thread/two-thread comparison, keep the total work and seed constant:
 
 ```bash
-./bin/bench_bignum_template_mt \
+./bin/bench_bignum_mod_sqrt_mt \
   --threads 1 \
   --total-iterations 3200000000 \
   --data-mode mixed
 
-./bin/bench_bignum_template_mt \
+./bin/bench_bignum_mod_sqrt_mt \
   --threads 2 \
   --total-iterations 3200000000 \
   --data-mode mixed
 ```
 
-The reusable benchmark implementation is the public `libs/benchmark-framework` Git submodule pinned to `v1.0.0`. The project-local ST and MT sources call its `benchmark-core` lifecycle through `benchmarks/adapter/bignum_template_benchmark_adapter.c`. The adapter validates bignum vocabulary, constructs deterministic `bignum_t` records, chooses representable shifts, and maps `bignum_template_status_t` to the named framework callback status.
+The reusable benchmark implementation is the public `libs/benchmark-framework` Git submodule pinned to `v1.0.0`. The project-local ST and MT sources call its `benchmark-core` lifecycle through `benchmarks/adapter/bignum_mod_sqrt_benchmark_adapter.c`. The adapter validates bignum vocabulary, constructs deterministic `bignum_t` records, chooses representable shifts, and maps `bignum_mod_sqrt_status_t` to the named framework callback status.
 
 ## Perf workflow
 
@@ -319,7 +319,7 @@ Reports are written to `benchmarks/reports/`. With `KEEP_PERF=1`, record-mode ra
 
 ### Parameterized JSON matrix and regression gate
 
-`bench_matrix` invokes the pinned C11 `bench_matrix` and `benchmark_stats` tools directly, without Python or hardware PMU events. The default `benchmarks/profiles/bignum_template_full.json` covers zero fast-paths, bit/word/combined shifts, one/quarter/half/variable operand lengths, and safe near-capacity cases. `benchmarks/profiles/bignum_template_standard.json` is the shorter bignum-specific smoke manifest and can be selected through `BENCH_MATRIX_PROFILE`. Each JSON manifest has a companion how-to document with its exact vocabulary and baseline workflow.
+`bench_matrix` invokes the pinned C11 `bench_matrix` and `benchmark_stats` tools directly, without Python or hardware PMU events. The default `benchmarks/profiles/bignum_mod_sqrt_full.json` covers zero fast-paths, bit/word/combined shifts, one/quarter/half/variable operand lengths, and safe near-capacity cases. `benchmarks/profiles/bignum_mod_sqrt_standard.json` is the shorter bignum-specific smoke manifest and can be selected through `BENCH_MATRIX_PROFILE`. Each JSON manifest has a companion how-to document with its exact vocabulary and baseline workflow.
 
 ```bash
 make bench_matrix CONFIG=release \
@@ -385,14 +385,14 @@ Then link your application with the component object and the required include pa
 
 ```bash
 gcc your_app.c \
-  build/bignum_template.o \
+  build/bignum_mod_sqrt.o \
   -I./include \
   -I./libs/bignum-core/include \
   -o your_app \
   -no-pie
 ```
 
-If the application requires symbols from the template dependency graph, prefer the distribution created by `make dist CONFIG=release` and link the resulting static library with the corresponding component libraries.
+If the application requires symbols from the mod_sqrt dependency graph, prefer the distribution created by `make dist CONFIG=release` and link the resulting static library with the corresponding component libraries.
 
 ## Contributing
 

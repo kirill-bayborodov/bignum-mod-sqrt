@@ -1,8 +1,8 @@
-# How-to: `bignum_template_standard.json`
+# How-to: `bignum_mod_sqrt_standard.json`
 
 ## Назначение
 
-`bignum_template_standard.json` — компактная versioned matrix для функциональной проверки и регрессионного baseline операции `bignum_template`. Manifest использует schema version `1`, которую читает C11-инструмент `bench_matrix` из pinned `benchmark-framework v1.0.0`.
+`bignum_mod_sqrt_standard.json` — компактная versioned matrix для функциональной проверки и регрессионного baseline операции `bignum_mod_sqrt`. Manifest использует schema version `1`, которую читает C11-инструмент `bench_matrix` из pinned `benchmark-framework v1.0.0`.
 
 > Manifest не описывает generic byte-transform. Он переносит bignum semantics через нейтральные transport fields benchmark framework.
 
@@ -20,10 +20,10 @@
 
 ```bash
 libs/benchmark-framework/build/tools/bench_matrix \
-  --manifest benchmarks/profiles/bignum_template_standard.json \
-  --output benchmarks/reports/bignum_template_standard_matrix.json \
-  --st-binary bin/bench_bignum_template \
-  --mt-binary bin/bench_bignum_template_mt \
+  --manifest benchmarks/profiles/bignum_mod_sqrt_standard.json \
+  --output benchmarks/reports/bignum_mod_sqrt_standard_matrix.json \
+  --st-binary bin/bench_bignum_mod_sqrt \
+  --mt-binary bin/bench_bignum_mod_sqrt_mt \
   --repetitions 1 \
   --iterations 1001 \
   --mt-total-iterations 2000 \
@@ -42,8 +42,8 @@ Aggregate a candidate without a baseline first:
 
 ```bash
 libs/benchmark-framework/build/tools/benchmark_stats \
-  --input benchmarks/reports/bignum_template_standard_matrix.json \
-  --output benchmarks/reports/bignum_template_standard_summary.json
+  --input benchmarks/reports/bignum_mod_sqrt_standard_matrix.json \
+  --output benchmarks/reports/bignum_mod_sqrt_standard_summary.json
 ```
 
 After human review, compare a later candidate to the approved matrix using identical manifests and measurement conditions:
