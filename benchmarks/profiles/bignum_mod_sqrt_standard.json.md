@@ -1,63 +1,42 @@
-# How-to: `bignum_mod_sqrt_standard.json`
+# Standard modular-square-root benchmark profile
 
-## Назначение
+## Purpose
 
-`bignum_mod_sqrt_standard.json` — компактная versioned matrix для функциональной проверки и регрессионного baseline операции `bignum_mod_sqrt`. Manifest использует schema version `1`, которую читает C11-инструмент `bench_matrix` из pinned `benchmark-framework v1.0.0`.
+This manifest is the deterministic smoke matrix for `bignum_mod_sqrt`. It covers the normalized zero fast path, scalar known residues, generated residues, mixed input rows, and near-capacity boundaries.
 
-> Manifest не описывает generic byte-transform. Он переносит bignum semantics через нейтральные transport fields benchmark framework.
+## Schema and vocabulary
 
-| JSON field | Значение в manifest | Bignum interpretation |
-|---|---|---|
-| `input_kind` | `zero`, `nonzero`, `mixed` | Форма исходного `bignum_t` dataset |
-| `operation_kind` | `shift-zero`, `shift-bit`, `shift-word`, `shift-combined`, `shift-random`, `shift-mixed` | Выбор representable left-shift amount |
-| `measure_mode` | `end-to-end`, `kernel-only` | Включает либо исключает preparation copy из timed interval |
-| `size_profile` | `one`, `quarter`, `half`, `variable`, `near-capacity` | Logical word length of input `bignum_t` |
-| `capacity_profile` | `normal`, `near-capacity` | Storage-boundary workload condition |
+The manifest uses `schema_version: 1` and the framework `profiles` array. Each profile contains `id`, `input_kind`, `operation_kind`, `measure_mode`, `size_profile`, and `capacity_profile`. `input_kind` is `zero`, `nonzero`, or `mixed`. `operation_kind` is `root-zero`, `root-residue`, `root-random`, or `root-mixed`. `measure_mode` is `end-to-end` or `kernel-only`; `size_profile` is `one`, `quarter`, `half`, `variable`, or `near-capacity`; and `capacity_profile` is `normal` or `near-capacity`.
 
-## Пошаговый smoke run
+The adapter fixes the benchmark modulus at 11 and generates inputs whose reduced value is a quadratic residue. The state contains input, modulus, and root records; the framework owns allocation and per-operation copies.
 
-После approved Makefile wiring adapter binaries будут передаваться C11 runner напрямую. Эквивалентная команда имеет следующую форму:
+## Reproducible run
+
+Build both benchmark binaries with the protected project Makefile, then inspect the installed tool contract:
 
 ```bash
-libs/benchmark-framework/build/tools/bench_matrix \
-  --manifest benchmarks/profiles/bignum_mod_sqrt_standard.json \
-  --output benchmarks/reports/bignum_mod_sqrt_standard_matrix.json \
-  --st-binary bin/bench_bignum_mod_sqrt \
-  --mt-binary bin/bench_bignum_mod_sqrt_mt \
-  --repetitions 1 \
-  --iterations 1001 \
-  --mt-total-iterations 2000 \
-  --threads 2 \
-  --warmup 10 \
-  --data-count 32 \
-  --seed 11400714819323198485 \
-  --timeout-seconds 30
+make bin/bench_bignum_mod_sqrt bin/bench_bignum_mod_sqrt_mt CONFIG=release USE_ASM=no
+libs/benchmark-framework/dist/tools/bench_matrix --help
 ```
 
-The expected matrix contains **8 profiles × 2 modes × repetitions** samples. Every accepted sample has exactly one `benchmark=...` line before its `Benchmark finished.` marker.
-
-## Aggregation and baseline comparison
-
-Aggregate a candidate without a baseline first:
+For direct runner validation, use explicit limits:
 
 ```bash
-libs/benchmark-framework/build/tools/benchmark_stats \
-  --input benchmarks/reports/bignum_mod_sqrt_standard_matrix.json \
-  --output benchmarks/reports/bignum_mod_sqrt_standard_summary.json
+./bin/bench_bignum_mod_sqrt --input-kind nonzero --operation-kind root-residue \
+  --size-profile one --measure-mode kernel-only --iterations 100000 \
+  --warmup 1000 --data-count 128 --seed 123
 ```
 
-After human review, compare a later candidate to the approved matrix using identical manifests and measurement conditions:
+A successful runner prints one machine-readable benchmark line followed by `Benchmark finished.`. Any callback error invalidates the run.
 
-```bash
-libs/benchmark-framework/build/tools/benchmark_stats \
-  --input benchmarks/reports/candidate_matrix.json \
-  --baseline benchmarks/reports/reviewed_baseline_matrix.json \
-  --output benchmarks/reports/candidate_summary.json \
-  --threshold-pct 5
-```
+## Baseline and comparison
 
-A changed profile set is intentionally not a valid baseline. The statistics tool returns non-zero and reports `missing_profiles` rather than treating a partial comparison as success.
+Use identical manifest, implementation settings, seed, warm-up, data count, repetitions, thread count and CPU affinity for C11 and YASM. Report medians and dispersion rather than a single sample. Small-input and MT results are sensitive to framework and scheduling overhead and must be interpreted separately from sustained kernel measurements.
 
-## Boundary case
+## Modification procedure
 
-`near-capacity` uses a valid source operand with a cleared high bit. It measures representable growth near `BIGNUM_CAPACITY`; it does not intentionally time the overflow error path. Overflow behavior belongs in deterministic API tests, not performance aggregates.
+When adding a profile, use a unique stable `id`, retain all schema fields, select only adapter vocabulary, and update this companion. Validate JSON before committing. Do not reintroduce unrelated `shift-*` or byte-transform vocabulary.
+
+## Failure policy
+
+Malformed JSON, unknown vocabulary, callback failure, missing checksum, or missing completion marker invalidates the matrix result. `Makefile` and CI workflows are protected and are not edited for profile changes.

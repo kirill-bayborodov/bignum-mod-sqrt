@@ -61,7 +61,26 @@ bignum_mod_sqrt_status_t bignum_mod_sqrt(const bignum_t *a, const bignum_t *modu
     if (a->len>BIGNUM_CAPACITY || modulus->len>BIGNUM_CAPACITY) return BIGNUM_MOD_SQRT_ERROR_OVERFLOW;
     from_public(&aa,a); from_public(&p,modulus);
     if (is_zero(&p) || !lowbit(&p)) return BIGNUM_MOD_SQRT_ERROR_MODULUS;
-    if (p.len == 1U) { uint64_t av = aa.len ? aa.w[0] % p.w[0] : 0U, rv; if (!u64_sqrt(av,p.w[0],&rv)) return BIGNUM_MOD_SQRT_ERROR_NOT_RESIDUE; memset(root,0,sizeof(*root)); if(rv){root->words[0]=rv;root->len=1;} return BIGNUM_MOD_SQRT_SUCCESS; }
+    if (p.len == 1U) {
+        uint64_t av;
+        uint64_t rv;
+        if (aa.len > 1U) {
+            bn_local reduced;
+            mod_reduce(&reduced, &aa, &p);
+            av = reduced.len == 0U ? 0U : reduced.w[0];
+        } else {
+            av = aa.len == 0U ? 0U : aa.w[0] % p.w[0];
+        }
+        if (!u64_sqrt(av, p.w[0], &rv)) {
+            return BIGNUM_MOD_SQRT_ERROR_NOT_RESIDUE;
+        }
+        memset(root, 0, sizeof(*root));
+        if (rv != 0U) {
+            root->words[0] = rv;
+            root->len = 1U;
+        }
+        return BIGNUM_MOD_SQRT_SUCCESS;
+    }
     { bn_local reduced; mod_reduce(&reduced,&aa,&p); aa = reduced; }
     if (is_zero(&aa)) { to_public(root,&aa); return BIGNUM_MOD_SQRT_SUCCESS; }
     q=p; sub_bn(&q,&one);

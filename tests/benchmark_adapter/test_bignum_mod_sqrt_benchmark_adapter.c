@@ -19,6 +19,12 @@
 /**
  * @brief Named outcomes returned by deterministic adapter test helpers.
  */
+typedef struct {
+    bignum_t input;
+    bignum_t modulus;
+    bignum_t root;
+} bignum_mod_sqrt_adapter_test_state_t;
+
 typedef enum {
     BIGNUM_MOD_SQRT_ADAPTER_TEST_STATUS_SUCCESS = 0, /**< The test helper's assertions succeeded. */
     BIGNUM_MOD_SQRT_ADAPTER_TEST_STATUS_FAILURE = 1 /**< An observed adapter outcome differed from its contract. */
@@ -43,7 +49,7 @@ static bignum_mod_sqrt_adapter_test_status_t bignum_mod_sqrt_adapter_test_make_w
     *workload = (benchmark_workload_t){
         .data_mode = "custom", /**< Adapter profile is explicitly selected. */
         .input_kind = "nonzero", /**< Generate normalized non-zero operands. */
-        .operation_kind = "shift-bit", /**< Exercise a representable bit shift. */
+        .operation_kind = "root-residue", /**< Exercise a known quadratic residue. */
         .measure_mode = "kernel-only", /**< Exclude preparation copies from timed work. */
         .size_profile = "quarter", /**< Generate a quarter-capacity operand length. */
         .capacity_profile = "normal", /**< Avoid boundary capacity pressure. */
@@ -103,8 +109,8 @@ static bignum_mod_sqrt_adapter_test_status_t bignum_mod_sqrt_adapter_test_callba
 {
     benchmark_adapter_t adapter;
     benchmark_workload_t workload;
-    bignum_t first_state;
-    bignum_t second_state;
+    bignum_mod_sqrt_adapter_test_state_t first_state;
+    bignum_mod_sqrt_adapter_test_state_t second_state;
     uint64_t checksum;
 
     if (bignum_mod_sqrt_benchmark_adapter_init(NULL) !=
@@ -114,7 +120,7 @@ static bignum_mod_sqrt_adapter_test_status_t bignum_mod_sqrt_adapter_test_callba
     if (bignum_mod_sqrt_benchmark_adapter_init(&adapter) !=
         BIGNUM_MOD_SQRT_BENCHMARK_STATUS_SUCCESS || adapter.initialize == NULL ||
         adapter.operation == NULL || adapter.checksum == NULL ||
-        adapter.state_size != sizeof(bignum_t)) {
+        adapter.state_size != sizeof(bignum_mod_sqrt_adapter_test_state_t)) {
         return BIGNUM_MOD_SQRT_ADAPTER_TEST_STATUS_FAILURE;
     }
     if (bignum_mod_sqrt_adapter_test_make_workload(&workload) !=
@@ -127,11 +133,13 @@ static bignum_mod_sqrt_adapter_test_status_t bignum_mod_sqrt_adapter_test_callba
         BENCHMARK_ADAPTER_STATUS_SUCCESS) {
         return BIGNUM_MOD_SQRT_ADAPTER_TEST_STATUS_FAILURE;
     }
-    if (first_state.len == 0U || first_state.len != second_state.len) {
+    if (first_state.input.len == 0U ||
+        first_state.input.len != second_state.input.len ||
+        first_state.modulus.len != 1U || first_state.modulus.words[0] != 11U) {
         return BIGNUM_MOD_SQRT_ADAPTER_TEST_STATUS_FAILURE;
     }
     for (size_t word = 0U; word < BIGNUM_CAPACITY; ++word) {
-        if (first_state.words[word] != second_state.words[word]) {
+        if (first_state.input.words[word] != second_state.input.words[word]) {
             return BIGNUM_MOD_SQRT_ADAPTER_TEST_STATUS_FAILURE;
         }
     }
